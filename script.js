@@ -46,30 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Mode toggle function
     function toggleMode() {
-        isRestMode = !isRestMode;
-        
-        if (isRestMode) {
-            // Switch to rest mode
-            document.body.classList.add('rest-mode');
-            modeToggleBtn.classList.add('rest-mode');
-            modeToggleBtn.title = "Switch to work mode";
-            modeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
-            
+        if (currentMode === 'pomodoro') {
             // If in pomodoro mode, switch to short break
-            if (currentMode === 'pomodoro' && !isRunning) {
-                switchMode('shortBreak');
-            }
+            switchMode('shortBreak');
         } else {
-            // Switch to work mode
-            document.body.classList.remove('rest-mode');
-            modeToggleBtn.classList.remove('rest-mode');
-            modeToggleBtn.title = "Switch to rest mode";
-            modeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
-            
-            // If in break mode, switch to pomodoro
-            if ((currentMode === 'shortBreak' || currentMode === 'longBreak') && !isRunning) {
-                switchMode('pomodoro');
-            }
+            // If in any break mode, switch to pomodoro
+            switchMode('pomodoro');
         }
     }
     
@@ -139,17 +121,33 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update active button
         [pomodoroBtn, shortBreakBtn, longBreakBtn].forEach(btn => btn.classList.remove('active'));
         
+        // Update toggle icon based on mode
         if (mode === 'pomodoro') {
             pomodoroBtn.classList.add('active');
-            if (!isRestMode) {
-                document.body.style.backgroundColor = '#f5f5f5';
-            }
-        } else if (mode === 'shortBreak') {
-            shortBreakBtn.classList.add('active');
-            document.body.style.backgroundColor = '#e8f5e9';
+            document.body.style.backgroundColor = '#f5f5f5';
+            
+            // Update toggle to show rest icon
+            modeToggleBtn.innerHTML = '<i class="fas fa-moon"></i>';
+            modeToggleBtn.title = "Switch to rest mode";
+            isRestMode = false;
+            document.body.classList.remove('rest-mode');
+            modeToggleBtn.classList.remove('rest-mode');
         } else {
-            longBreakBtn.classList.add('active');
-            document.body.style.backgroundColor = '#e3f2fd';
+            // Short break or long break
+            if (mode === 'shortBreak') {
+                shortBreakBtn.classList.add('active');
+                document.body.style.backgroundColor = '#e8f5e9';
+            } else {
+                longBreakBtn.classList.add('active');
+                document.body.style.backgroundColor = '#e3f2fd';
+            }
+            
+            // Update toggle to show work icon
+            modeToggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
+            modeToggleBtn.title = "Switch to work mode";
+            isRestMode = true;
+            document.body.classList.add('rest-mode');
+            modeToggleBtn.classList.add('rest-mode');
         }
     }
     
