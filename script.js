@@ -43,6 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function showApp() {
         loginContainer.style.display = 'none';
         appContainer.style.display = 'block';
+        
+        // Load completed sessions from localStorage
+        loadCompletedSessions();
     }
 
     // Pomodoro Timer DOM elements
@@ -56,6 +59,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const longBreakBtn = document.getElementById('long-break-btn');
     const sessionCountEl = document.getElementById('session-count');
     const modeToggleBtn = document.getElementById('mode-toggle');
+    
+    // Task modal elements
+    const taskModal = document.getElementById('task-modal');
+    const taskInput = document.getElementById('task-input');
+    const startTaskBtn = document.getElementById('start-task-btn');
+    const currentTaskText = document.getElementById('current-task-text');
+    const completedSessionsList = document.getElementById('completed-sessions-list');
 
     // Timer settings (in minutes)
     const POMODORO_TIME = 25;
@@ -69,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRunning = false;
     let sessionCount = 0;
     let isRestMode = false;
+    let currentTask = '';
+    let completedSessions = [];
     
     // Audio notification
     const alarmSound = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
@@ -77,17 +89,55 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTimerDisplay();
     
     // Event listeners
-    startBtn.addEventListener('click', startTimer);
+    startBtn.addEventListener('click', showTaskModal);
     pauseBtn.addEventListener('click', pauseTimer);
     resetBtn.addEventListener('click', resetTimer);
     pomodoroBtn.addEventListener('click', () => switchMode('pomodoro'));
     shortBreakBtn.addEventListener('click', () => switchMode('shortBreak'));
     longBreakBtn.addEventListener('click', () => switchMode('longBreak'));
     modeToggleBtn.addEventListener('click', toggleMode);
+    startTaskBtn.addEventListener('click', startTimerWithTask);
+    
+    // Task input enter key
+    taskInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            startTimerWithTask();
+        }
+    });
     
     // Request notification permission
     if ('Notification' in window) {
         Notification.requestPermission();
+    }
+    
+    // Show task modal
+    function showTaskModal() {
+        if (currentMode !== 'pomodoro') {
+            // If not in pomodoro mode, just start the timer without asking for a task
+            startTimer();
+            return;
+        }
+        
+        taskInput.value = currentTask; // Pre-fill with current task if any
+        taskModal.style.display = 'flex';
+        taskInput.focus();
+    }
+    
+    // Start timer with task
+    function startTimerWithTask() {
+        currentTask = taskInput.value.trim();
+        if (currentTask === '') {
+            currentTask = 'Sin descripción';
+        }
+        
+        // Update task display
+        currentTaskText.textContent = currentTask;
+        
+        // Hide modal
+        taskModal.style.display = 'none';
+        
+        // Start the timer
+        startTimer();
     }
     
     // Mode toggle function
@@ -140,6 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showNotification();
         
         if (currentMode === 'pomodoro') {
+            // Save completed session
+            saveCompletedSession();
+            
             sessionCount++;
             sessionCountEl.textContent = sessionCount;
             
@@ -218,8 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
         minutesEl.textContent = minutes.toString().padStart(2, '0');
         secondsEl.textContent = seconds.toString().padStart(2, '0');
         
-        // Update page title
-        document.title = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} - Pomodoro Timer`;
+        // Update page title with task if available
+        let title = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} - Pomodoro Timer`;
+        if (currentTask && currentMode === 'pomodoro') {
+            title = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} - ${currentTask}`;
+        }
+        document.title = title;
     }
     
     function playAlarmSound() {
@@ -231,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let message = '';
             
             if (currentMode === 'pomodoro') {
-                message = 'Pomodoro completed! Take a break.';
+                message = `Pomodoro completado: ${currentTask}`;
             } else {
                 message = 'Break time is over! Back to work.';
             }
@@ -241,5 +298,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 icon: 'https://cdn-icons-png.flaticon.com/512/6062/6062646.png'
             });
         }
+    }
+    
+    // Save completed session
+    function saveCompletedSession() {
+        if (currentTask) {
+            const now = new Date();
+            const session = {
+                task: currentTask,
+                timestamp: now.toISOString(),
+                formattedTime: formatDate(now),
+                duration: POMODORO_TIME
+            };
+            
+            completedSessions.unshift(session); // Add to beginning of array
+            
+            // Save to localStorage
+            localStorage.setItem('completedSessions', JSON.stringify(completedSessions));
+            
+            // Update UI
+            updateCompletedSessionsList();
+        }
+    }
+    
+    // Load completed sessions from localStorage
+    function loadCompletedSessions() {
+        const savedSessions = localStorage.getItem('completedSessions');
+        if (savedSessions) {
+            completedSessions = JSON.parse(savedSessions);
+            updateCompletedSessionsList();
+        }
+    }
+    
+    // Update completed sessions list in UI
+    function updateCompletedSessionsList() {
+        completedSessionsList.innerHTML = '';
+        
+        if (completedSessions.length === 0) {
+            const emptyMessage = document.createElement('p');
+            emptyMessage.textContent = 'No hay sesiones completadas';
+            emptyMessage.style.color = '#888';
+            emptyMessage.style.fontStyle = 'italic';
+            completedSessionsList.appendChild(emptyMessage);
+            return;
+        }
+        
+        completedSessions.forEach(session => {
+            const sessionItem = document.createElement('div');
+            sessionItem.className = 'session-item';
+            
+            const taskText = document.createElement('div');
+            taskText.textContent = session.task;
+            
+            const timeText = document.createElement('div');
+            timeText.className = 'session-time';
+            timeText.textContent = `${session.formattedTime} (${session.duration} min)`;
+            
+            sessionItem.appendChild(taskText);
+            sessionItem.appendChild(timeText);
+            completedSessionsList.appendChild(sessionItem);
+        });
+    }
+    
+    // Format date helper
+    function formatDate(date) {
+        return date.toLocaleString('es-ES', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
     }
 }); 

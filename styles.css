@@ -291,4 +291,102 @@ body.rest-mode {
         padding: 0.3rem 0.6rem;
         font-size: 0.85rem;
     }
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.modal-content h2 {
+    color: #5e60ce;
+    margin-bottom: 1.5rem;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+/* Current task display */
+.current-task-display {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: #555;
+    text-align: left;
+    border-left: 3px solid #5e60ce;
+}
+
+.current-task-display i {
+    color: #5e60ce;
+    margin-right: 0.5rem;
+}
+
+/* Completed sessions */
+.completed-sessions-container {
+    margin-top: 2rem;
+    text-align: left;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+
+.completed-sessions-container h3 {
+    font-size: 1.1rem;
+    color: #555;
+    margin-bottom: 0.8rem;
+}
+
+.completed-sessions-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.session-item {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+    border-left: 3px solid #5e60ce;
+}
+
+.session-item .session-time {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 0.3rem;
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 600px) {
+    .modal-content {
+        width: 95%;
+        padding: 1.5rem;
+    }
+    
+    .completed-sessions-list {
+        max-height: 150px;
+    }
 } 

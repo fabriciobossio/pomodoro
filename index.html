@@ -24,6 +24,19 @@
         </div>
     </div>
 
+    <!-- Task Modal -->
+    <div id="task-modal" class="modal">
+        <div class="modal-content">
+            <h2>¿En qué estás trabajando?</h2>
+            <div class="input-group">
+                <input type="text" id="task-input" placeholder="Describe tu tarea...">
+            </div>
+            <div class="modal-buttons">
+                <button id="start-task-btn" class="btn">Comenzar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="app-container" class="container" style="display: none;">
         <div class="header">
             <button id="mode-toggle" class="mode-toggle" title="Switch to rest mode">
@@ -34,6 +47,9 @@
         <h1>Pomodoro Timer</h1>
         
         <div class="timer-container">
+            <div id="current-task-display" class="current-task-display">
+                <p><i class="fas fa-tasks"></i> <span id="current-task-text">Sin tarea</span></p>
+            </div>
             <div class="timer">
                 <span id="minutes">25</span>:<span id="seconds">00</span>
             </div>
@@ -53,6 +69,13 @@
         
         <div class="session-counter">
             <p>Completed sessions: <span id="session-count">0</span></p>
+        </div>
+        
+        <div id="completed-sessions-container" class="completed-sessions-container">
+            <h3>Completed Sessions</h3>
+            <div id="completed-sessions-list" class="completed-sessions-list">
+                <!-- Completed sessions will be added here -->
+            </div>
         </div>
     </div>
     
