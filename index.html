@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button id="mode-toggle" class="mode-toggle" title="Switch to rest mode">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+        
+        <h1>Pomodoro Timer</h1>
+        
+        <div class="timer-container">
+            <div class="timer">
+                <span id="minutes">25</span>:<span id="seconds">00</span>
+            </div>
+            
+            <div class="timer-controls">
+                <button id="start-btn" class="btn"><i class="fas fa-play"></i> Start</button>
+                <button id="pause-btn" class="btn" disabled><i class="fas fa-pause"></i> Pause</button>
+                <button id="reset-btn" class="btn"><i class="fas fa-redo-alt"></i> Reset</button>
+            </div>
+        </div>
+        
+        <div class="mode-selector">
+            <button id="pomodoro-btn" class="mode-btn active">Pomodoro</button>
+            <button id="short-break-btn" class="mode-btn">Short Break</button>
+            <button id="long-break-btn" class="mode-btn">Long Break</button>
+        </div>
+        
+        <div class="session-counter">
+            <p>Completed sessions: <span id="session-count">0</span></p>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html> 
