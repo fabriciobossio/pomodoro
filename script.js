@@ -1,5 +1,51 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM elements
+    // Login elements
+    const loginContainer = document.getElementById('login-container');
+    const appContainer = document.getElementById('app-container');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const loginBtn = document.getElementById('login-btn');
+    const loginError = document.getElementById('login-error');
+    
+    // Login credentials
+    const VALID_USERNAME = 'fabricio';
+    const VALID_PASSWORD = 'fabricio';
+    
+    // Check if user is already logged in
+    if (localStorage.getItem('pomodoroLoggedIn') === 'true') {
+        showApp();
+    }
+    
+    // Login event listener
+    loginBtn.addEventListener('click', attemptLogin);
+    
+    // Login on Enter key
+    passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            attemptLogin();
+        }
+    });
+    
+    function attemptLogin() {
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+        
+        if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+            // Save login state
+            localStorage.setItem('pomodoroLoggedIn', 'true');
+            showApp();
+        } else {
+            loginError.textContent = 'Usuario o contraseña incorrectos';
+            passwordInput.value = '';
+        }
+    }
+    
+    function showApp() {
+        loginContainer.style.display = 'none';
+        appContainer.style.display = 'block';
+    }
+
+    // Pomodoro Timer DOM elements
     const minutesEl = document.getElementById('minutes');
     const secondsEl = document.getElementById('seconds');
     const startBtn = document.getElementById('start-btn');

@@ -8,7 +8,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
+    <div id="login-container" class="login-container">
+        <div class="login-box">
+            <h2>Pomodoro Login</h2>
+            <div class="input-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" placeholder="Ingrese su usuario">
+            </div>
+            <div class="input-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" placeholder="Ingrese su contraseña">
+            </div>
+            <button id="login-btn" class="login-btn">Ingresar</button>
+            <p id="login-error" class="login-error"></p>
+        </div>
+    </div>
+
+    <div id="app-container" class="container" style="display: none;">
         <div class="header">
             <button id="mode-toggle" class="mode-toggle" title="Switch to rest mode">
                 <i class="fas fa-moon"></i>
