@@ -145,6 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isLocalStorageAvailable) {
             loadCompletedSessions();
             loadPendingTasks();
+            
+            // Verificar y eliminar tareas completadas que siguen en pendientes
+            removeCompletedTasksFromPending();
+            
+            // Forzar limpieza del DOM
+            setTimeout(forceDOMCleanup, 500);
         }
     }
 
@@ -181,25 +187,50 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Start timer with task
     function startTimerWithTask() {
+        // Variable para almacenar el ID de la tarea actual
+        let currentTaskId = null;
+        
         // Get task from selection or input
         if (selectedTaskInModal !== null) {
-            currentTask = pendingTasks[selectedTaskInModal].text;
+            // Usar una tarea existente de la lista de pendientes
+            const selectedTask = pendingTasks[selectedTaskInModal];
+            currentTask = selectedTask.text;
+            currentTaskId = selectedTask.id;
             
-            // Remove the task from pending tasks
-            const taskId = pendingTasks[selectedTaskInModal].id;
-            pendingTasks = pendingTasks.filter(task => task.id !== taskId);
-            updatePendingTasksUI();
-            savePendingTasks();
+            console.log('Iniciando tarea existente:', currentTask, 'con ID:', currentTaskId);
         } else {
+            // Crear una nueva tarea desde el input
             currentTask = taskInput.value.trim();
             if (currentTask === '') {
                 currentTask = 'Sin descripción';
+                currentTaskId = null; // Sin ID para tareas sin descripción
+            } else {
+                // Si es una tarea nueva con texto, añadirla a pendientes
+                currentTaskId = Date.now();
+                const newTask = {
+                    id: currentTaskId,
+                    text: currentTask,
+                    createdAt: new Date().toISOString()
+                };
+                
+                pendingTasks.push(newTask);
+                savePendingTasks();
+                updatePendingTasksUI();
+                console.log('Creando nueva tarea:', currentTask, 'con ID:', currentTaskId);
             }
         }
         
         // Update task display
         currentTaskText.textContent = currentTask;
         currentTaskDisplay.style.display = 'block'; // Mostrar el div de tarea actual
+        
+        // Guardar el ID de la tarea actual como atributo de datos
+        if (currentTaskId) {
+            currentTaskText.setAttribute('data-task-id', currentTaskId);
+            console.log('ID de tarea guardado en DOM:', currentTaskId);
+        } else {
+            currentTaskText.removeAttribute('data-task-id');
+        }
         
         // Hide modal
         hideTaskModal();
@@ -215,6 +246,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function finishTask() {
         if (!currentTask || !isRunning) return;
         
+        // Obtener el ID de la tarea actual
+        const currentTaskId = currentTaskText.getAttribute('data-task-id');
+        console.log('Finalizando tarea:', currentTask, 'con ID:', currentTaskId);
+        
         // Calcular el tiempo que tomó completar la tarea
         const now = new Date();
         const elapsedTimeInMinutes = Math.round((now - taskStartTime) / 60000);
@@ -222,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Guardar la sesión completada
         const session = {
             task: currentTask,
+            taskId: currentTaskId ? parseInt(currentTaskId) : null,
             timestamp: now.toISOString(),
             formattedTime: formatDate(now),
             duration: elapsedTimeInMinutes
@@ -247,6 +283,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         } catch (error) {
             console.error('Error al mostrar notificación:', error);
+        }
+        
+        // Eliminar la tarea de la lista de pendientes usando su ID
+        if (currentTaskId) {
+            removeTaskById(currentTaskId);
         }
         
         // Reiniciar el temporizador
@@ -287,14 +328,22 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update pending tasks UI
     function updatePendingTasksUI() {
+        console.log('ACTUALIZANDO UI DE TAREAS PENDIENTES');
+        console.log('Número de tareas pendientes:', pendingTasks.length);
+        
+        // Limpiar completamente el contenedor
         pendingTasksContainer.innerHTML = '';
         
         if (pendingTasks.length === 0) {
+            console.log('No hay tareas pendientes para mostrar');
             // No mostrar ningún mensaje cuando no hay tareas pendientes
             return;
         }
         
+        // Crear elementos para cada tarea
         pendingTasks.forEach((task, index) => {
+            console.log('Renderizando tarea:', task);
+            
             const taskItem = document.createElement('div');
             taskItem.className = 'task-item';
             taskItem.setAttribute('draggable', 'true');
@@ -330,6 +379,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             pendingTasksContainer.appendChild(taskItem);
         });
+        
+        // Verificar que el DOM se actualizó correctamente
+        console.log('Elementos de tareas en el DOM después de actualizar:', pendingTasksContainer.children.length);
     }
     
     // Update modal pending tasks
@@ -370,13 +422,27 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Delete task
     function deleteTask(taskId) {
+        console.log('Eliminando tarea con ID:', taskId);
+        debugTasks('Antes de eliminar');
+        
+        const originalLength = pendingTasks.length;
         pendingTasks = pendingTasks.filter(task => task.id !== taskId);
+        
+        console.log('Se eliminaron', originalLength - pendingTasks.length, 'tareas');
+        debugTasks('Después de eliminar');
+        
         updatePendingTasksUI();
         savePendingTasks();
     }
     
-    // Save pending tasks to localStorage
+    // Función de depuración para verificar el estado de las tareas pendientes
+    function debugTasks(message) {
+        console.log('DEBUG [' + message + '] - Tareas pendientes:', JSON.stringify(pendingTasks));
+    }
+    
+    // Modificar savePendingTasks para incluir depuración
     function savePendingTasks() {
+        debugTasks('savePendingTasks');
         if (isLocalStorageAvailable) {
             try {
                 localStorage.setItem('pendingTasks', JSON.stringify(pendingTasks));
@@ -386,12 +452,117 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Load pending tasks from localStorage
+    // Función para verificar y corregir los IDs de las tareas
+    function verifyTaskIds() {
+        console.log('Verificando IDs de tareas pendientes...');
+        let modified = false;
+        
+        // Verificar que todos los IDs sean números enteros
+        for (let i = 0; i < pendingTasks.length; i++) {
+            const task = pendingTasks[i];
+            
+            // Si el ID no es un número o es una cadena, convertirlo a número
+            if (typeof task.id !== 'number' || isNaN(task.id)) {
+                console.warn('Tarea con ID inválido:', task);
+                
+                // Intentar convertir a número si es una cadena numérica
+                if (typeof task.id === 'string' && !isNaN(parseInt(task.id))) {
+                    task.id = parseInt(task.id);
+                    console.log('ID convertido a número:', task.id);
+                    modified = true;
+                } else {
+                    // Asignar un nuevo ID único
+                    task.id = Date.now() + i;
+                    console.log('Asignado nuevo ID:', task.id);
+                    modified = true;
+                }
+            }
+        }
+        
+        // Si se modificaron tareas, guardar los cambios
+        if (modified) {
+            console.log('Se corrigieron IDs de tareas, guardando cambios...');
+            localStorage.setItem('pendingTasks', JSON.stringify(pendingTasks));
+            updatePendingTasksUI();
+        } else {
+            console.log('Todos los IDs de tareas son válidos.');
+        }
+    }
+    
+    // Función para limpiar el localStorage y reiniciar la aplicación
+    function resetApplication() {
+        console.log('Reiniciando aplicación y limpiando datos...');
+        
+        // Limpiar localStorage
+        localStorage.removeItem('pendingTasks');
+        localStorage.removeItem('completedSessions');
+        
+        // Reiniciar variables
+        pendingTasks = [];
+        completedSessions = [];
+        
+        // Actualizar UI
+        updatePendingTasksUI();
+        updateCompletedSessionsList();
+        
+        console.log('Aplicación reiniciada correctamente.');
+    }
+    
+    // Función para verificar si hay tareas duplicadas y corregirlas
+    function checkForDuplicateTasks() {
+        console.log('Verificando tareas duplicadas...');
+        
+        // Crear un mapa para detectar duplicados por ID
+        const taskMap = new Map();
+        const duplicateIds = [];
+        
+        // Buscar duplicados
+        for (const task of pendingTasks) {
+            if (taskMap.has(task.id)) {
+                duplicateIds.push(task.id);
+            } else {
+                taskMap.set(task.id, task);
+            }
+        }
+        
+        // Si hay duplicados, eliminarlos
+        if (duplicateIds.length > 0) {
+            console.warn('Se encontraron tareas duplicadas con IDs:', duplicateIds);
+            
+            // Filtrar para mantener solo una instancia de cada tarea
+            const uniqueTasks = [];
+            const seenIds = new Set();
+            
+            for (const task of pendingTasks) {
+                if (!seenIds.has(task.id)) {
+                    uniqueTasks.push(task);
+                    seenIds.add(task.id);
+                }
+            }
+            
+            // Actualizar la lista de tareas
+            pendingTasks = uniqueTasks;
+            
+            // Guardar cambios
+            localStorage.setItem('pendingTasks', JSON.stringify(pendingTasks));
+            updatePendingTasksUI();
+            
+            console.log('Tareas duplicadas eliminadas.');
+        } else {
+            console.log('No se encontraron tareas duplicadas.');
+        }
+    }
+    
+    // Llamar a la función de verificación al cargar las tareas
     function loadPendingTasks() {
         try {
             const savedTasks = localStorage.getItem('pendingTasks');
             if (savedTasks) {
                 pendingTasks = JSON.parse(savedTasks);
+                // Verificar y corregir IDs
+                verifyTaskIds();
+                // Verificar y eliminar duplicados
+                checkForDuplicateTasks();
                 updatePendingTasksUI();
             }
         } catch (error) {
@@ -480,17 +651,39 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetTimer() {
         pauseTimer();
         
-        // Si hay una tarea en ejecución, devolverla a la lista de pendientes
+        // Si hay una tarea en ejecución, verificar si ya existe en la lista de pendientes
         if (currentTask && currentTask !== 'Sin descripción') {
-            const newTask = {
-                id: Date.now(),
-                text: currentTask,
-                createdAt: new Date().toISOString()
-            };
+            const currentTaskId = currentTaskText.getAttribute('data-task-id');
             
-            pendingTasks.push(newTask);
-            updatePendingTasksUI();
-            savePendingTasks();
+            // Solo añadir la tarea a pendientes si tiene un ID y no existe ya
+            if (currentTaskId) {
+                // Verificar si la tarea ya existe en la lista de pendientes
+                const taskExists = pendingTasks.some(task => task.id === parseInt(currentTaskId));
+                
+                if (!taskExists) {
+                    // Si no existe, añadirla a la lista de pendientes
+                    const newTask = {
+                        id: parseInt(currentTaskId),
+                        text: currentTask,
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    pendingTasks.push(newTask);
+                    updatePendingTasksUI();
+                    savePendingTasks();
+                }
+            } else {
+                // Si no tiene ID, crear una nueva tarea
+                const newTask = {
+                    id: Date.now(),
+                    text: currentTask,
+                    createdAt: new Date().toISOString()
+                };
+                
+                pendingTasks.push(newTask);
+                updatePendingTasksUI();
+                savePendingTasks();
+            }
         }
         
         // Reiniciar el temporizador
@@ -508,8 +701,10 @@ document.addEventListener('DOMContentLoaded', () => {
         showNotification();
         
         if (currentMode === 'pomodoro') {
+            console.log('Completando pomodoro para tarea:', currentTask);
+            
             // Save completed session
-            if (isLocalStorageAvailable) {
+            if (isLocalStorageAvailable && currentTask) {
                 saveCompletedSession();
             }
             
@@ -615,9 +810,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Save completed session
     function saveCompletedSession() {
         if (currentTask) {
+            // Obtener el ID de la tarea actual
+            const currentTaskId = currentTaskText.getAttribute('data-task-id');
+            console.log('Completando sesión para tarea:', currentTask, 'con ID:', currentTaskId);
+            
             const now = new Date();
             const session = {
                 task: currentTask,
+                taskId: currentTaskId ? parseInt(currentTaskId) : null,
                 timestamp: now.toISOString(),
                 formattedTime: formatDate(now),
                 duration: POMODORO_TIME
@@ -632,6 +832,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateCompletedSessionsList();
             } catch (error) {
                 console.error('Error al guardar sesiones completadas:', error);
+            }
+            
+            // Eliminar la tarea de la lista de pendientes usando su ID
+            if (currentTaskId) {
+                removeTaskById(currentTaskId);
             }
         }
     }
@@ -671,6 +876,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const sessionItem = document.createElement('div');
             sessionItem.className = 'session-item';
             
+            // Guardar el ID de la tarea como atributo de datos
+            if (session.taskId) {
+                sessionItem.setAttribute('data-task-id', session.taskId);
+            }
+            
             const taskText = document.createElement('div');
             taskText.textContent = session.task;
             
@@ -694,4 +904,260 @@ document.addEventListener('DOMContentLoaded', () => {
             minute: '2-digit'
         });
     }
+
+    // Función para guardar un pomodoro completado
+    function saveCompletedPomodoro(taskName) {
+        const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+        
+        // Obtener los datos existentes
+        const pomodoroData = JSON.parse(localStorage.getItem('pomodoroData') || '{}');
+        
+        // Si no existe entrada para hoy, crearla
+        if (!pomodoroData[today]) {
+            pomodoroData[today] = {
+                count: 0,
+                tasks: {}
+            };
+        }
+        
+        // Incrementar contador general
+        pomodoroData[today].count += 1;
+        
+        // Si hay una tarea, registrarla
+        if (taskName) {
+            pomodoroData[today].tasks[taskName] = (pomodoroData[today].tasks[taskName] || 0) + 1;
+        }
+        
+        // Guardar los datos actualizados
+        localStorage.setItem('pomodoroData', JSON.stringify(pomodoroData));
+        
+        // Actualizar la visualización de estadísticas
+        updatePomodoroStats();
+    }
+
+    // Función para obtener y mostrar estadísticas
+    function updatePomodoroStats() {
+        const pomodoroData = JSON.parse(localStorage.getItem('pomodoroData') || '{}');
+        const statsContainer = document.getElementById('completed-sessions-container');
+        const statsList = document.getElementById('completed-sessions-list');
+        
+        // Limpiar lista actual
+        statsList.innerHTML = '';
+        
+        // Convertir a array para ordenar
+        const daysArray = Object.keys(pomodoroData).sort().reverse();
+        
+        if (daysArray.length === 0) {
+            statsList.innerHTML = '<p>No hay pomodoros registrados aún.</p>';
+            return;
+        }
+        
+        // Crear elementos para cada día
+        daysArray.forEach(date => {
+            const dayData = pomodoroData[date];
+            const dayElement = document.createElement('div');
+            dayElement.className = 'session-item';
+            
+            // Formatear fecha para mostrar
+            const formattedDate = new Date(date).toLocaleDateString();
+            
+            // Crear contenido HTML
+            let tasksHtml = '';
+            if (dayData.tasks) {
+                const taskEntries = Object.entries(dayData.tasks);
+                if (taskEntries.length > 0) {
+                    tasksHtml = '<ul style="margin-top: 5px; font-size: 0.85rem;">';
+                    taskEntries.forEach(([task, count]) => {
+                        tasksHtml += `<li>${task}: ${count} pomodoro${count !== 1 ? 's' : ''}</li>`;
+                    });
+                    tasksHtml += '</ul>';
+                }
+            }
+            
+            dayElement.innerHTML = `
+                <strong>${formattedDate}</strong>: ${dayData.count} pomodoro${dayData.count !== 1 ? 's' : ''} completados
+                ${tasksHtml}
+            `;
+            
+            statsList.appendChild(dayElement);
+        });
+        
+        // Mostrar el contenedor
+        statsContainer.style.display = 'block';
+    }
+
+    // Cargar estadísticas al iniciar la aplicación
+    updatePomodoroStats();
+
+    // Función para eliminar definitivamente una tarea por su ID
+    function removeTaskById(taskId) {
+        console.log('ELIMINANDO DEFINITIVAMENTE tarea con ID:', taskId);
+        
+        // Convertir a número si es una cadena
+        const taskIdNum = typeof taskId === 'string' ? parseInt(taskId) : taskId;
+        
+        // Verificar que sea un número válido
+        if (isNaN(taskIdNum)) {
+            console.error('ID de tarea inválido:', taskId);
+            return false;
+        }
+        
+        // Mostrar tareas antes de eliminar
+        console.log('Tareas antes de eliminar:', JSON.stringify(pendingTasks));
+        
+        // Buscar la tarea por ID
+        let found = false;
+        for (let i = 0; i < pendingTasks.length; i++) {
+            if (pendingTasks[i].id === taskIdNum) {
+                console.log('Encontrada tarea para eliminar en índice:', i, 'con ID:', pendingTasks[i].id);
+                // Eliminar la tarea
+                pendingTasks.splice(i, 1);
+                found = true;
+                break;
+            }
+        }
+        
+        // Eliminar directamente del DOM
+        const taskElements = document.querySelectorAll(`.task-item[data-task-id="${taskIdNum}"]`);
+        console.log(`Encontrados ${taskElements.length} elementos en el DOM con ID ${taskIdNum}`);
+        
+        taskElements.forEach(element => {
+            console.log('Eliminando elemento del DOM:', element);
+            element.remove();
+        });
+        
+        if (!found && taskElements.length === 0) {
+            console.warn('No se encontró la tarea con ID:', taskIdNum);
+        }
+        
+        // Mostrar tareas después de eliminar
+        console.log('Tareas después de eliminar:', JSON.stringify(pendingTasks));
+        
+        // Guardar cambios en localStorage
+        localStorage.setItem('pendingTasks', JSON.stringify(pendingTasks));
+        
+        // Forzar actualización completa de la UI
+        updatePendingTasksUI();
+        updateModalPendingTasks();
+        
+        // Verificar que el DOM se actualizó correctamente
+        setTimeout(() => {
+            const remainingElements = document.querySelectorAll(`.task-item[data-task-id="${taskIdNum}"]`);
+            if (remainingElements.length > 0) {
+                console.error(`¡ALERTA! Todavía hay ${remainingElements.length} elementos en el DOM con ID ${taskIdNum}`);
+                // Eliminar forzosamente
+                remainingElements.forEach(element => element.remove());
+            } else {
+                console.log('Verificación exitosa: No quedan elementos en el DOM con ese ID');
+            }
+        }, 100);
+        
+        return found || taskElements.length > 0;
+    }
+
+    // Función para verificar y eliminar tareas completadas que aún aparecen en la lista de pendientes
+    function removeCompletedTasksFromPending() {
+        console.log('Verificando tareas completadas que siguen en pendientes...');
+        
+        // Crear un conjunto con los IDs de las tareas completadas
+        const completedTaskIds = new Set();
+        for (const session of completedSessions) {
+            if (session.taskId) {
+                completedTaskIds.add(session.taskId);
+            }
+        }
+        
+        console.log('IDs de tareas completadas:', Array.from(completedTaskIds));
+        
+        // Verificar si alguna tarea pendiente está en la lista de completadas
+        let removedCount = 0;
+        for (let i = pendingTasks.length - 1; i >= 0; i--) {
+            const task = pendingTasks[i];
+            if (completedTaskIds.has(task.id)) {
+                console.log('Eliminando tarea completada que sigue en pendientes:', task);
+                pendingTasks.splice(i, 1);
+                removedCount++;
+            }
+        }
+        
+        if (removedCount > 0) {
+            console.log(`Se eliminaron ${removedCount} tareas completadas de la lista de pendientes.`);
+            localStorage.setItem('pendingTasks', JSON.stringify(pendingTasks));
+            updatePendingTasksUI();
+        } else {
+            console.log('No se encontraron tareas completadas en la lista de pendientes.');
+        }
+    }
+
+    // Función para forzar la limpieza del DOM y asegurarnos de que no queden tareas duplicadas
+    function forceDOMCleanup() {
+        console.log('Forzando limpieza del DOM...');
+        
+        // Obtener todos los IDs válidos de tareas pendientes
+        const validTaskIds = new Set(pendingTasks.map(task => task.id));
+        console.log('IDs válidos de tareas pendientes:', Array.from(validTaskIds));
+        
+        // Buscar elementos en el DOM que no correspondan a tareas válidas
+        const allTaskElements = document.querySelectorAll('.task-item');
+        console.log(`Encontrados ${allTaskElements.length} elementos de tareas en el DOM`);
+        
+        let removedCount = 0;
+        allTaskElements.forEach(element => {
+            const elementId = parseInt(element.getAttribute('data-task-id'));
+            if (!validTaskIds.has(elementId)) {
+                console.log('Eliminando elemento inválido del DOM con ID:', elementId);
+                element.remove();
+                removedCount++;
+            }
+        });
+        
+        if (removedCount > 0) {
+            console.log(`Se eliminaron ${removedCount} elementos inválidos del DOM`);
+        } else {
+            console.log('No se encontraron elementos inválidos en el DOM');
+        }
+        
+        // Verificar que el número de elementos en el DOM coincida con el número de tareas pendientes
+        const remainingElements = document.querySelectorAll('.task-item');
+        if (remainingElements.length !== pendingTasks.length) {
+            console.error(`¡ALERTA! El número de elementos en el DOM (${remainingElements.length}) no coincide con el número de tareas pendientes (${pendingTasks.length})`);
+            
+            // Forzar actualización completa
+            updatePendingTasksUI();
+        } else {
+            console.log('Verificación exitosa: El número de elementos en el DOM coincide con el número de tareas pendientes');
+        }
+    }
+
+    // Añadir un botón de emergencia para limpiar todo
+    function addEmergencyResetButton() {
+        // Crear el botón
+        const resetButton = document.createElement('button');
+        resetButton.textContent = 'Reiniciar App (Emergencia)';
+        resetButton.style.position = 'fixed';
+        resetButton.style.bottom = '10px';
+        resetButton.style.right = '10px';
+        resetButton.style.zIndex = '9999';
+        resetButton.style.backgroundColor = '#ff5252';
+        resetButton.style.color = 'white';
+        resetButton.style.border = 'none';
+        resetButton.style.borderRadius = '4px';
+        resetButton.style.padding = '8px 12px';
+        resetButton.style.cursor = 'pointer';
+        resetButton.style.fontSize = '12px';
+        
+        // Añadir evento de clic
+        resetButton.addEventListener('click', () => {
+            if (confirm('¿Estás seguro de que quieres reiniciar completamente la aplicación? Esto eliminará todas las tareas pendientes y sesiones completadas.')) {
+                resetApplication();
+                location.reload(); // Recargar la página
+            }
+        });
+        
+        // Añadir al body
+        document.body.appendChild(resetButton);
+    }
+    
+    // Llamar a la función cuando se carga la aplicación
+    setTimeout(addEmergencyResetButton, 1000);
 }); 
