@@ -45,6 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const finishTaskBtn = document.getElementById('finish-task-btn');
     const addTimeBtn = document.getElementById('add-time-btn');
 
+    // Pomodoro completed modal elements
+    const pomodoroCompletedModal = document.getElementById('pomodoro-completed-modal');
+    const completedTaskName = document.getElementById('completed-task-name');
+    const finishTaskModalBtn = document.getElementById('finish-task-modal-btn');
+    const addTimeModalBtn = document.getElementById('add-time-modal-btn');
+
     // Task management elements
     const newTaskInput = document.getElementById('new-task-input');
     const addTaskBtn = document.getElementById('add-task-btn');
@@ -114,6 +120,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') {
             startTimerWithTask();
         }
+    });
+    
+    // Event listeners for pomodoro completed modal
+    finishTaskModalBtn.addEventListener('click', () => {
+        finishTask();
+        hidePomodoroCompletedModal();
+    });
+    
+    addTimeModalBtn.addEventListener('click', () => {
+        addFiveMinutes();
+        hidePomodoroCompletedModal();
+        // Reiniciar el temporizador automáticamente
+        startTimer();
     });
     
     // Request notification permission
@@ -703,21 +722,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentMode === 'pomodoro') {
             console.log('Completando pomodoro para tarea:', currentTask);
             
-            // Save completed session
-            if (isLocalStorageAvailable && currentTask) {
-                saveCompletedSession();
-            }
-            
-            // After 4 pomodoros, suggest a long break
-            if (Math.random() > 0.75) {
-                switchMode('longBreak');
+            // Mostrar el modal de pomodoro completado si hay una tarea actual
+            if (currentTask) {
+                showPomodoroCompletedModal();
             } else {
-                switchMode('shortBreak');
+                // Si no hay tarea, guardar la sesión y continuar normalmente
+                if (isLocalStorageAvailable) {
+                    saveCompletedSession();
+                }
+                
+                // After 4 pomodoros, suggest a long break
+                if (Math.random() > 0.75) {
+                    switchMode('longBreak');
+                } else {
+                    switchMode('shortBreak');
+                }
+                
+                // Ocultar el div de tarea actual al completar un pomodoro
+                currentTask = '';
+                currentTaskDisplay.style.display = 'none';
             }
-            
-            // Ocultar el div de tarea actual al completar un pomodoro
-            currentTask = '';
-            currentTaskDisplay.style.display = 'none';
         } else {
             switchMode('pomodoro');
         }
@@ -1160,4 +1184,24 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Llamar a la función cuando se carga la aplicación
     setTimeout(addEmergencyResetButton, 1000);
+
+    // Show pomodoro completed modal
+    function showPomodoroCompletedModal() {
+        // Establecer el nombre de la tarea completada
+        completedTaskName.textContent = currentTask;
+        
+        // Mostrar el modal
+        pomodoroCompletedModal.classList.add('show');
+        
+        // Enfocar la ventana
+        window.focus();
+        
+        // Reproducir sonido de notificación para llamar la atención
+        playAlarmSound();
+    }
+    
+    // Hide pomodoro completed modal
+    function hidePomodoroCompletedModal() {
+        pomodoroCompletedModal.classList.remove('show');
+    }
 }); 
